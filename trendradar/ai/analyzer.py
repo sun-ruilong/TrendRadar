@@ -597,17 +597,21 @@ class AIAnalyzer:
 
         # 解析成功，提取字段
         try:
-            result.core_trends = data.get("core_trends", "")
-            result.sentiment_controversy = data.get("sentiment_controversy", "")
-            result.signals = data.get("signals", "")
-            result.rss_insights = data.get("rss_insights", "")
-            result.outlook_strategy = data.get("outlook_strategy", "")
+            result.core_trends = self._stringify_ai_section(data.get("core_trends", ""))
+            result.sentiment_controversy = self._stringify_ai_section(
+                data.get("sentiment_controversy", "")
+            )
+            result.signals = self._stringify_ai_section(data.get("signals", ""))
+            result.rss_insights = self._stringify_ai_section(data.get("rss_insights", ""))
+            result.outlook_strategy = self._stringify_ai_section(
+                data.get("outlook_strategy", "")
+            )
 
             # 解析独立展示区概括
             summaries = data.get("standalone_summaries", {})
             if isinstance(summaries, dict):
                 result.standalone_summaries = {
-                    str(k): str(v) for k, v in summaries.items()
+                    str(k): self._stringify_ai_section(v) for k, v in summaries.items()
                 }
 
             result.success = True
@@ -617,3 +621,26 @@ class AIAnalyzer:
             result.success = True
 
         return result
+
+    def _stringify_ai_section(self, value: Any) -> str:
+        """将模型返回的章节内容统一转换为字符串，兼容列表和对象。"""
+        if value is None:
+            return ""
+
+        if isinstance(value, str):
+            return value
+
+        if isinstance(value, list):
+            parts = [self._stringify_ai_section(item) for item in value]
+            return "\n".join(part for part in parts if part)
+
+        if isinstance(value, dict):
+            text_value = value.get("text")
+            if text_value is not None:
+                return self._stringify_ai_section(text_value)
+            try:
+                return json.dumps(value, ensure_ascii=False)
+            except TypeError:
+                return str(value)
+
+        return str(value)

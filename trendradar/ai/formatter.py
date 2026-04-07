@@ -6,6 +6,7 @@ AI 分析结果格式化模块
 """
 
 import html as html_lib
+import json
 import re
 from .analyzer import AIAnalysisResult
 
@@ -15,6 +16,26 @@ def _escape_html(text: str) -> str:
     return html_lib.escape(text) if text else ""
 
 
+def _coerce_text(value) -> str:
+    """将 AI 字段值统一转换成可渲染的文本。"""
+    if value is None:
+        return ""
+    if isinstance(value, str):
+        return value
+    if isinstance(value, list):
+        parts = [_coerce_text(item) for item in value]
+        return "\n".join(part for part in parts if part)
+    if isinstance(value, dict):
+        text_value = value.get("text")
+        if text_value is not None:
+            return _coerce_text(text_value)
+        try:
+            return json.dumps(value, ensure_ascii=False)
+        except TypeError:
+            return str(value)
+    return str(value)
+
+
 def _format_list_content(text: str) -> str:
     """
     格式化列表内容，确保序号前有换行
@@ -22,6 +43,8 @@ def _format_list_content(text: str) -> str:
     1. xxx
     2. yyy
     """
+    text = _coerce_text(text)
+
     if not text:
         return ""
     
@@ -71,8 +94,9 @@ def _format_standalone_summaries(summaries: dict) -> str:
         return ""
     lines = []
     for source_name, summary in summaries.items():
-        if summary:
-            lines.append(f"[{source_name}]:\n{summary}")
+        summary_text = _coerce_text(summary)
+        if summary_text:
+            lines.append(f"[{source_name}]:\n{summary_text}")
     return "\n\n".join(lines)
 
 
