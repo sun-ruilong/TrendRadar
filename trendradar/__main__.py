@@ -273,7 +273,11 @@ class NewsAnalyzer:
 
     def _should_open_browser(self) -> bool:
         """判断是否应该打开浏览器"""
-        return not self.is_github_actions and not self.is_docker_container
+        return (
+            not self.is_github_actions
+            and not self.is_docker_container
+            and self.ctx.config.get("AUTO_OPEN_HTML", False)
+        )
 
     def _setup_proxy(self) -> None:
         """设置代理配置"""

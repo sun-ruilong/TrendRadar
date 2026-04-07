@@ -129,7 +129,7 @@ def _beautify_feishu_item(text: str) -> str:
 
     text = re.sub(r"\s*[|｜~～]\s*", "\n", text)
     text = re.sub(
-        r"(?<!\n)(意义|价值|启发|动作|建议|风险|机会|判断|结论|为什么重要|该做什么|今晚可做|本周观察|可以忽略)\s*[：:]",
+        r"(?<!\n)(出处|意义|价值|启发|动作|建议|风险|机会|判断|结论|为什么重要|该做什么|今晚可做|本周观察|可以忽略|原文)\s*[：:]",
         r"\n**\1：**",
         text,
     )
@@ -140,6 +140,11 @@ def _beautify_feishu_item(text: str) -> str:
         return ""
 
     lines[0] = f"**{lines[0]}**"
+    for idx, line in enumerate(lines[1:], start=1):
+        match = re.match(r"\*\*原文：\*\*\s*(https?://\S+)", line)
+        if match:
+            url = match.group(1)
+            lines[idx] = f"**原文：** [点击查看]({url})"
     return "\n".join(lines)
 
 
@@ -222,24 +227,24 @@ def render_ai_analysis_feishu(result: AIAnalysisResult) -> str:
     lines = [
         "**每日 AI 生意简报**",
         "",
-        f"候选 {result.analyzed_news} 条，整理成这份更适合一人公司的可执行晚报。",
+        "结构：4 条必看、6 条快扫、3 条行动建议。",
         "",
     ]
 
     if result.core_trends:
-        lines.extend(_render_feishu_section("今天最值得看", result.core_trends))
+        lines.extend(_render_feishu_section("4 条必看", result.core_trends))
 
     if result.sentiment_controversy and not _is_placeholder_text(result.sentiment_controversy):
         lines.extend(_render_feishu_section("值得注意的分歧", result.sentiment_controversy))
 
     if result.signals:
-        lines.extend(_render_feishu_section("值得留意的信号", result.signals))
+        lines.extend(_render_feishu_section("快扫信号", result.signals))
 
     if result.rss_insights and not _is_placeholder_text(result.rss_insights):
-        lines.extend(_render_feishu_section("RSS 增量", result.rss_insights))
+        lines.extend(_render_feishu_section("补充快扫", result.rss_insights))
 
     if result.outlook_strategy:
-        lines.extend(_render_feishu_section("今晚怎么做", result.outlook_strategy))
+        lines.extend(_render_feishu_section("3 条行动建议", result.outlook_strategy))
 
     if result.standalone_summaries:
         summaries_text = _format_standalone_summaries(result.standalone_summaries)

@@ -270,6 +270,7 @@ class AIAnalyzer:
 
                         # 来源
                         source = t.get("source_name", t.get("source", ""))
+                        source_url = t.get("url", "") or t.get("mobile_url", "")
 
                         # 构建行
                         if source:
@@ -293,6 +294,8 @@ class AIAnalyzer:
                         appear_count = t.get("count", 1)
 
                         line += f" | 排名:{rank_str} | 时间:{time_str} | 出现:{appear_count}次"
+                        if source_url:
+                            line += f" | 原文:{source_url}"
 
                         # 开启完整时间线时，额外添加轨迹
                         if self.include_rank_timeline:
@@ -327,6 +330,7 @@ class AIAnalyzer:
 
                         # 来源
                         source = t.get("source_name", t.get("feed_name", ""))
+                        source_url = t.get("url", "") or t.get("mobile_url", "")
 
                         # 发布时间
                         time_display = t.get("time_display", "")
@@ -338,6 +342,8 @@ class AIAnalyzer:
                             line = f"- {title}"
                         if time_display:
                             line += f" | {time_display}"
+                        if source_url:
+                            line += f" | 原文:{source_url}"
                         rss_lines.append(line)
 
                         rss_count += 1
