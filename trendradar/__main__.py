@@ -2051,6 +2051,7 @@ def _run_test_notification(config: Dict) -> bool:
     from trendradar.notification import NotificationDispatcher
 
     ctx = AppContext(config)
+    test_ctx: Optional[AppContext] = None
 
     try:
         # 检查是否配置了通知渠道
@@ -2084,6 +2085,8 @@ def _run_test_notification(config: Dict) -> bool:
                 "AI_ANALYSIS": False,
             }
         )
+        # 测试通知固定显示热榜区，避免自定义 region_order 只保留 ai_analysis 时出现空推送。
+        test_display["REGION_ORDER"] = ["hotlist"]
 
         # 测试时禁用翻译，避免触发额外 AI 调用
         if "AI_TRANSLATION" in test_config:
@@ -2093,15 +2096,16 @@ def _run_test_notification(config: Dict) -> bool:
         if proxy_url:
             print("[测试通知] 检测到代理配置，将使用代理发送")
 
+        test_ctx = AppContext(test_config)
         dispatcher = NotificationDispatcher(
             config=test_config,
-            get_time_func=ctx.get_time,
-            split_content_func=ctx.split_content,
+            get_time_func=test_ctx.get_time,
+            split_content_func=test_ctx.split_content,
             translator=None,
         )
 
-        report_data = _build_test_report_data(ctx)
-        html_file_path = _create_test_html_file(ctx)
+        report_data = _build_test_report_data(test_ctx)
+        html_file_path = _create_test_html_file(test_ctx)
 
         print("=" * 60)
         print("通知连通性测试")
@@ -2132,6 +2136,8 @@ def _run_test_notification(config: Dict) -> bool:
         print(f"测试结果: {success_count}/{len(results)} 个渠道成功")
         return success_count > 0
     finally:
+        if test_ctx is not None:
+            test_ctx.cleanup()
         ctx.cleanup()
 
 
