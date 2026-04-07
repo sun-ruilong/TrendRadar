@@ -31,8 +31,12 @@ class AIClient:
                 - FALLBACK_MODELS: 备用模型列表（可选）
         """
         self.model = config.get("MODEL", "deepseek/deepseek-chat")
-        self.api_key = config.get("API_KEY") or os.environ.get("AI_API_KEY", "")
-        self.api_base = config.get("API_BASE", "")
+        self.api_key = (
+            config.get("API_KEY")
+            or os.environ.get("AI_API_KEY", "")
+            or os.environ.get("ARK_API_KEY", "")
+        )
+        self.api_base = config.get("API_BASE", "") or os.environ.get("ARK_API_BASE", "")
         self.temperature = config.get("TEMPERATURE", 1.0)
         self.max_tokens = config.get("MAX_TOKENS", 5000)
         self.timeout = config.get("TIMEOUT", 120)
@@ -112,7 +116,7 @@ class AIClient:
             return False, "未配置 AI 模型（model）"
 
         if not self.api_key:
-            return False, "未配置 AI API Key，请在 config.yaml 或环境变量 AI_API_KEY 中设置"
+            return False, "未配置 AI API Key，请在 config.yaml 或环境变量 AI_API_KEY / ARK_API_KEY 中设置"
 
         # 验证模型格式（应该包含 provider/model）
         if "/" not in self.model:

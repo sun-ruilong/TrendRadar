@@ -130,7 +130,7 @@ class AIAnalyzer:
         if not self.client.api_key:
             return AIAnalysisResult(
                 success=False,
-                error="未配置 AI API Key，请在 config.yaml 或环境变量 AI_API_KEY 中设置"
+                error="未配置 AI API Key，请在 config.yaml 或环境变量 AI_API_KEY / ARK_API_KEY 中设置"
             )
 
         # 准备新闻内容并获取统计数据
