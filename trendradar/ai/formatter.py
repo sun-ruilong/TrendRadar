@@ -100,6 +100,80 @@ def _format_standalone_summaries(summaries: dict) -> str:
     return "\n\n".join(lines)
 
 
+def _split_numbered_items(text: str) -> list[str]:
+    """拆分 1. 2. 这种编号段落，便于按条渲染。"""
+    text = _coerce_text(text).replace("\r\n", "\n").strip()
+    if not text:
+        return []
+
+    normalized = re.sub(r'(?<!\n)\s*(\d+\.\s*)(?!\d)', r'\n\1', text).strip()
+    matches = list(re.finditer(r'(?m)^\s*\d+\.\s*', normalized))
+    if not matches:
+        return [normalized]
+
+    items = []
+    for idx, match in enumerate(matches):
+        start = match.start()
+        end = matches[idx + 1].start() if idx + 1 < len(matches) else len(normalized)
+        item = normalized[start:end].strip()
+        if item:
+            items.append(item)
+    return items
+
+
+def _beautify_feishu_item(text: str) -> str:
+    """把单条内容整理成更适合飞书手机阅读的块状文本。"""
+    text = _coerce_text(text).strip()
+    if not text:
+        return ""
+
+    text = re.sub(r"\s*[|｜~～]\s*", "\n", text)
+    text = re.sub(
+        r"(?<!\n)(意义|价值|启发|动作|建议|风险|机会|判断|结论|为什么重要|该做什么|今晚可做|本周观察|可以忽略)\s*[：:]",
+        r"\n**\1：**",
+        text,
+    )
+    text = re.sub(r"\n{3,}", "\n\n", text).strip()
+
+    lines = [line.strip() for line in text.splitlines() if line.strip()]
+    if not lines:
+        return ""
+
+    lines[0] = f"**{lines[0]}**"
+    return "\n".join(lines)
+
+
+def _render_feishu_section(title: str, content: str) -> list[str]:
+    """将某个 AI section 渲染成更易扫读的飞书块。"""
+    text = _coerce_text(content).strip()
+    if not text:
+        return []
+
+    items = _split_numbered_items(text)
+    rendered_items = [_beautify_feishu_item(item) for item in items]
+    rendered_items = [item for item in rendered_items if item]
+
+    lines = [f"**{title}**", ""]
+    if rendered_items:
+        lines.append("\n\n".join(rendered_items))
+    else:
+        lines.append(_beautify_feishu_item(text))
+    lines.append("")
+    return lines
+
+
+def _is_placeholder_text(text: str) -> bool:
+    """识别可以在飞书里省略的占位文案。"""
+    normalized = _coerce_text(text).strip()
+    if not normalized:
+        return True
+    if "暂无" in normalized and "分歧" in normalized:
+        return True
+    if "暂无" in normalized and "增量" in normalized:
+        return True
+    return normalized in {"暂无显著分歧", "暂无显著增量", "暂无明显分歧", "暂无明显增量"}
+
+
 def render_ai_analysis_markdown(result: AIAnalysisResult) -> str:
     """渲染为通用 Markdown 格式（Telegram、企业微信、ntfy、Bark、Slack）"""
     if not result.success:
@@ -145,35 +219,34 @@ def render_ai_analysis_feishu(result: AIAnalysisResult) -> str:
             return f"ℹ️ {result.error}"
         return f"⚠️ AI 分析失败: {result.error}"
 
-    lines = ["**✨ AI 热点分析**", ""]
+    lines = [
+        "**每日 AI 生意简报**",
+        "",
+        f"候选 {result.analyzed_news} 条，整理成这份更适合一人公司的可执行晚报。",
+        "",
+    ]
 
     if result.core_trends:
-        lines.extend(["**核心热点态势**", _format_list_content(result.core_trends), ""])
+        lines.extend(_render_feishu_section("今天最值得看", result.core_trends))
 
-    if result.sentiment_controversy:
-        lines.extend(
-            ["**舆论风向争议**", _format_list_content(result.sentiment_controversy), ""]
-        )
+    if result.sentiment_controversy and not _is_placeholder_text(result.sentiment_controversy):
+        lines.extend(_render_feishu_section("值得注意的分歧", result.sentiment_controversy))
 
     if result.signals:
-        lines.extend(["**异动与弱信号**", _format_list_content(result.signals), ""])
+        lines.extend(_render_feishu_section("值得留意的信号", result.signals))
 
-    if result.rss_insights:
-        lines.extend(
-            ["**RSS 深度洞察**", _format_list_content(result.rss_insights), ""]
-        )
+    if result.rss_insights and not _is_placeholder_text(result.rss_insights):
+        lines.extend(_render_feishu_section("RSS 增量", result.rss_insights))
 
     if result.outlook_strategy:
-        lines.extend(
-            ["**研判策略建议**", _format_list_content(result.outlook_strategy), ""]
-        )
+        lines.extend(_render_feishu_section("今晚怎么做", result.outlook_strategy))
 
     if result.standalone_summaries:
         summaries_text = _format_standalone_summaries(result.standalone_summaries)
         if summaries_text:
-            lines.extend(["**独立源点速览**", summaries_text])
+            lines.extend(["**独立源点速览**", summaries_text, ""])
 
-    return "\n".join(lines)
+    return "\n".join(line for line in lines if line is not None).strip()
 
 
 def render_ai_analysis_dingtalk(result: AIAnalysisResult) -> str:
