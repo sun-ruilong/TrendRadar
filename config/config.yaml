@@ -325,7 +325,7 @@ notification:
 
     ntfy:
       server_url: "https://ntfy.sh"   # ntfy 服务器地址（可改为自托管）
-      topic: ""                       # ntfy 主题名称
+      topic: "trendradar-srl-test-20260407-2051-684231"  # 临时测试主题，验证通过后建议替换
       token: ""                       # ntfy 访问令牌（可选，用于私有主题）
 
     bark:
