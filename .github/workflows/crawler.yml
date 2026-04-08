@@ -2,7 +2,7 @@ name: Get Hot News
 
 on:
   schedule:
-    - cron: "0 0 * * *" # 08:00 Asia/Shanghai
+    - cron: "7 3 * * *" # 11:07 Asia/Shanghai
   workflow_dispatch:
     inputs:
       run_mode:
