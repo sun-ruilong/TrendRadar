@@ -100,12 +100,16 @@ def _load_notification_config(config_data: Dict) -> Dict:
     notification = config_data.get("notification", {})
     advanced = config_data.get("advanced", {})
     batch_size = advanced.get("batch_size", {})
+    feishu_message_type = _get_env_str("FEISHU_MESSAGE_TYPE") or advanced.get(
+        "feishu_message_type", "auto"
+    )
 
     return {
         "ENABLE_NOTIFICATION": notification.get("enabled", True),
         "MESSAGE_BATCH_SIZE": batch_size.get("default", 4000),
         "DINGTALK_BATCH_SIZE": batch_size.get("dingtalk", 20000),
         "FEISHU_BATCH_SIZE": batch_size.get("feishu", 29000),
+        "FEISHU_MESSAGE_TYPE": feishu_message_type,
         "BARK_BATCH_SIZE": batch_size.get("bark", 3600),
         "SLACK_BATCH_SIZE": batch_size.get("slack", 4000),
         "BATCH_SEND_INTERVAL": advanced.get("batch_send_interval", 1.0),

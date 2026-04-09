@@ -30,7 +30,11 @@ from urllib.parse import urlparse
 import requests
 
 from .batch import add_batch_headers, get_max_batch_header_size
-from .formatters import convert_markdown_to_mrkdwn, strip_markdown
+from .formatters import (
+    convert_markdown_to_feishu_post,
+    convert_markdown_to_mrkdwn,
+    strip_markdown,
+)
 
 
 def _render_ai_analysis(ai_analysis: Any, channel: str) -> str:
@@ -85,6 +89,7 @@ def send_to_feishu(
     *,
     batch_size: int = 29000,
     batch_interval: float = 1.0,
+    message_type: str = "auto",
     split_content_func: Callable = None,
     get_time_func: Callable = None,
     rss_items: Optional[list] = None,
@@ -168,11 +173,24 @@ def send_to_feishu(
 
         # 根据 webhook 域名选择 payload 格式
         # www.feishu.cn 使用纯文本格式，其他域名（open.feishu.cn/open.larksuite.com）使用卡片 2.0
-        if "www.feishu.cn" in webhook_url:
+        resolved_message_type = message_type.lower().strip() or "auto"
+        if resolved_message_type == "auto":
+            resolved_message_type = "text" if "www.feishu.cn" in webhook_url else "post"
+
+        if resolved_message_type == "text":
             payload = {
                 "msg_type": "text",
                 "content": {
                     "text": batch_content,
+                },
+            }
+        elif resolved_message_type == "post":
+            payload = {
+                "msg_type": "post",
+                "content": {
+                    "post": convert_markdown_to_feishu_post(
+                        batch_content, default_title=report_type
+                    ),
                 },
             }
         else:

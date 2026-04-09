@@ -416,6 +416,7 @@ class NotificationDispatcher:
                 account_label=account_label,
                 batch_size=self.config.get("FEISHU_BATCH_SIZE", 29000),
                 batch_interval=self.config.get("BATCH_SEND_INTERVAL", 1.0),
+                message_type=self.config.get("FEISHU_MESSAGE_TYPE", "auto"),
                 split_content_func=self.split_content_func,
                 get_time_func=self.get_time_func,
                 rss_items=ri,

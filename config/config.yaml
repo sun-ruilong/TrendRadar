@@ -582,4 +582,5 @@ advanced:
     bark: 4000
     slack: 4000
   batch_send_interval: 3              # 批次发送间隔（秒）
+  feishu_message_type: "post"         # 飞书消息类型：auto | post | interactive | text
   feishu_message_separator: "━━━━━━━━━━━━━━━━"
