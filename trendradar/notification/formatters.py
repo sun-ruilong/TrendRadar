@@ -12,6 +12,7 @@ from typing import Any, Dict, List
 _MARKDOWN_OR_URL_PATTERN = re.compile(
     r"\[([^\]]+)\]\((https?://[^)\s]+)\)|(https?://[^\s<>\]]+)"
 )
+_NUMBERED_ITEM_PATTERN = re.compile(r"^\d+\.\s+")
 
 
 def strip_markdown(text: str) -> str:
@@ -89,6 +90,28 @@ def _truncate_text(text: str, limit: int = 60) -> str:
     return f"{text[: limit - 1]}…"
 
 
+def _is_numbered_item_line(line: str) -> bool:
+    return bool(_NUMBERED_ITEM_PATTERN.match(line.strip()))
+
+
+def _make_text_paragraph(text: str) -> List[Dict[str, str]]:
+    return [{"tag": "text", "text": text}]
+
+
+def _make_blank_paragraph() -> List[Dict[str, str]]:
+    return [{"tag": "text", "text": "　"}]
+
+
+def _is_blank_paragraph(paragraph: List[Dict[str, str]]) -> bool:
+    return len(paragraph) == 1 and paragraph[0].get("tag") == "text" and paragraph[0].get("text") == "　"
+
+
+def _append_blank_paragraph(paragraphs: List[List[Dict[str, str]]]) -> None:
+    if not paragraphs or _is_blank_paragraph(paragraphs[-1]):
+        return
+    paragraphs.append(_make_blank_paragraph())
+
+
 def _build_link_element(url: str, context_text: str = "") -> Dict[str, str]:
     context_text = context_text.strip()
     label = "点击查看"
@@ -164,7 +187,11 @@ def convert_markdown_to_feishu_post(content: str, default_title: str = "TrendRad
 
     paragraphs: List[List[Dict[str, str]]] = []
     if batch_label:
-        paragraphs.append([{"tag": "text", "text": f"【{batch_label}】"}])
+        paragraphs.append(_make_text_paragraph(f"【{batch_label}】"))
+        paragraphs.append(_make_blank_paragraph())
+
+    blocks: List[tuple[str, Any]] = []
+    current_item: List[str] = []
 
     for line in lines[body_start:]:
         stripped = line.strip()
@@ -176,13 +203,47 @@ def convert_markdown_to_feishu_post(content: str, default_title: str = "TrendRad
             continue
 
         if _is_heading_line(stripped, plain_line):
-            heading = plain_line.strip("【】")
-            paragraphs.append([{"tag": "text", "text": f"【{heading}】"}])
+            if current_item:
+                blocks.append(("item", current_item))
+                current_item = []
+            blocks.append(("heading", plain_line.strip("【】")))
             continue
 
-        elements = _convert_line_to_feishu_elements(stripped)
+        if _is_numbered_item_line(plain_line):
+            if current_item:
+                blocks.append(("item", current_item))
+            current_item = [stripped]
+            continue
+
+        if current_item:
+            current_item.append(stripped)
+        else:
+            blocks.append(("paragraph", stripped))
+
+    if current_item:
+        blocks.append(("item", current_item))
+
+    for idx, (block_type, block_value) in enumerate(blocks):
+        if block_type == "heading":
+            _append_blank_paragraph(paragraphs)
+            paragraphs.append(_make_text_paragraph(f"【{block_value}】"))
+            paragraphs.append(_make_blank_paragraph())
+            continue
+
+        if block_type == "item":
+            for item_line in block_value:
+                elements = _convert_line_to_feishu_elements(item_line)
+                if elements:
+                    paragraphs.append(elements)
+            if idx < len(blocks) - 1:
+                paragraphs.append(_make_blank_paragraph())
+            continue
+
+        elements = _convert_line_to_feishu_elements(block_value)
         if elements:
             paragraphs.append(elements)
+            if idx < len(blocks) - 1:
+                paragraphs.append(_make_blank_paragraph())
 
     if not paragraphs:
         paragraphs = [[{"tag": "text", "text": strip_markdown(content) or default_title}]]
